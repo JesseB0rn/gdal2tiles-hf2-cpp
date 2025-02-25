@@ -248,48 +248,38 @@ int main(int argc, char *argv[])
       int x2 = static_cast<int>(tile_x_offset + pixels_to_read_x);
       int y2 = static_cast<int>(tile_y_offset + pixels_to_read_y);
 
-      // std::cout << "Tile " << tile_x << tile_y << " from " << x1 << ":" << y1 << " to " << x2 << ":" << y2 << std::endl;
-
-      // create new dataset
-      // for (int x = x1; x < x2; x++)
-      // {
-      //   for (int y = y1; y < y2; y++)
-      //   {
-      //     if (x < 0 || y < 0 || x >= nXSize || y >= nYSize)
-      //     {
-      //       continue;
-      //     }
-      //     int ix = double(x - x1) / double(x2 - x1) * double(k_tile_size);
-      //     int iy = double(y - y1) / double(y2 - y1) * double(k_tile_size);
-      //     int tile_index = iy * k_tile_size + ix;
-      //     int grid_index = y * nXSize + x;
-
-      //     if (gridBuffer[grid_index] == -9999.0f)
-      //       continue;
-
-      //     tileBuffer[tile_index] = gridBuffer[grid_index];
-      //   }
-      // }
-
       for (int ix = 0; ix < k_tile_size; ix++)
       {
         for (int iy = 0; iy < k_tile_size; iy++)
         {
-          int x = x1 + double(ix) / double(k_tile_size) * double(x2 - x1);
-          int y = y1 + double(iy) / double(k_tile_size) * double(y2 - y1);
+          double x = x1 + double(ix) / double(k_tile_size) * double(x2 - x1);
+          double y = y1 + double(iy) / double(k_tile_size) * double(y2 - y1);
 
-          if (x < 0 || y < 0 || x >= nXSize || y >= nYSize)
+          if (x < 0 || y < 0 || x + 1 >= nXSize || y + 1 >= nYSize)
           {
             continue;
           }
 
-          int grid_index = y * nXSize + x;
+          int grid_index_ul = (int)y * nXSize + (int)x;
+          int grid_index_ur = (int)y * nXSize + (int)x + 1;
+          int grid_index_ll = (int)y * nXSize + (int)x + nXSize;
+          int grid_index_lr = (int)y * nXSize + (int)x + nXSize + 1;
+
           int tile_index = iy * k_tile_size + ix;
 
-          if (gridBuffer[grid_index] == -9999.0f)
+          if (gridBuffer[grid_index_ul] == -9999.0f || gridBuffer[grid_index_ur] == -9999.0f || gridBuffer[grid_index_ll] == -9999.0f || gridBuffer[grid_index_lr] == -9999.0f)
             continue;
 
-          tileBuffer[tile_index] = gridBuffer[grid_index];
+          // average
+          // tileBuffer[tile_index] = (gridBuffer[grid_index_ul] + gridBuffer[grid_index_ur] + gridBuffer[grid_index_ll] + gridBuffer[grid_index_lr]) / 4.0;
+
+          // bilinear interpolation
+          double x1_bi = x - (int)x;
+          double y1_bi = y - (int)y;
+          double x2_bi = 1 - x1_bi;
+          double y2_bi = 1 - y1_bi;
+
+          tileBuffer[tile_index] = gridBuffer[grid_index_ul] * x2_bi * y2_bi + gridBuffer[grid_index_ur] * x1_bi * y2_bi + gridBuffer[grid_index_ll] * x2_bi * y1_bi + gridBuffer[grid_index_lr] * x1_bi * y1_bi;
         }
       }
 
