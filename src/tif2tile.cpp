@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
   std::cout << "[]     listing required tiles..." << std::endl;
   int k_tile_size = 256;
 
-  int k_Zoom = 15;
+  int k_Zoom = 14;
 
   // find dataset geolocation
   double adfGeoTransform[6];
@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
 
   // creation optiosn for all tiles
   char **papszOptions = NULL;
-  papszOptions = CSLSetNameValue(papszOptions, "COMPRESS", "NO");
+  papszOptions = CSLSetNameValue(papszOptions, "COMPRESS", "YES");
   papszOptions = CSLSetNameValue(papszOptions, "VERTICAL_PRECISION", "0.0001");
 
   double tileOffsetX = tilex2long(long2tilex(adfGeoTransform[0], k_Zoom), k_Zoom) - adfGeoTransform[0];
@@ -293,12 +293,12 @@ int main(int argc, char *argv[])
         exit(1);
       }
       double *adfTileGeoTransform = new double[6];
-      adfTileGeoTransform[0] = tile_x * k_tile_size;
-      adfTileGeoTransform[1] = 1;
+      adfTileGeoTransform[0] = tilex2long(tile_x + min_tile_x, k_Zoom);
+      adfTileGeoTransform[1] = adfGeoTransform[1] * double(pixels_to_read_x) / double(k_tile_size);
       adfTileGeoTransform[2] = 0;
-      adfTileGeoTransform[3] = tile_y * k_tile_size;
+      adfTileGeoTransform[3] = tiley2lat(tile_y + min_tile_y, k_Zoom);
       adfTileGeoTransform[4] = 0;
-      adfTileGeoTransform[5] = -1;
+      adfTileGeoTransform[5] = adfGeoTransform[5] * double(pixels_to_read_y) / double(k_tile_size);
       poDstDatasetTmp->SetGeoTransform(adfTileGeoTransform);
 
       if (poDstDatasetTmp->GetRasterBand(1)->RasterIO(GF_Write, 0, 0, k_tile_size, k_tile_size, tileBuffer, k_tile_size, k_tile_size, GDT_Float32, 0, 0) != CE_None)
@@ -307,9 +307,9 @@ int main(int argc, char *argv[])
         exit(1);
       }
 
-      // poDstDatasetTmp->SetProjection(poSrcDataset->GetProjectionRef());
+      poDstDatasetTmp->SetProjection(poSrcDataset->GetProjectionRef());
 
-      snprintf(filename, 256, "./tileset/%d/%d/%d.hf2", k_Zoom, tile_x + min_tile_x, tile_y + min_tile_y);
+      snprintf(filename, 256, "./tileset/%d/%d/%d.hfz", k_Zoom, tile_x + min_tile_x, tile_y + min_tile_y);
 
       GDALDataset *poDstDataset;
       poDstDataset = poDriverHF->CreateCopy(filename, poDstDatasetTmp, FALSE, papszOptions, NULL, NULL);
@@ -321,6 +321,8 @@ int main(int argc, char *argv[])
       // delete[] readBuffer;
     }
   }
+
+  std::cout << "[]     Done" << std::endl;
 
   GDALDestroy();
   return 0;
