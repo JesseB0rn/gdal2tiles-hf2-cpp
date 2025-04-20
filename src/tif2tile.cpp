@@ -37,92 +37,7 @@ double tiley2lat(double y, int z)
   return 180.0 / M_PI * atan(0.5 * (exp(n) - exp(-n)));
 }
 
-// typedef struct
-// {
-//   int readx, ready, readxsize, readysize;
-//   int writex, writey, writexsize, writeysize;
-// } RWWindowMapping;
-
-// typedef struct
-// {
-//   int SizeX, SizeY;
-//   double *geoTransform;
-// } RWWindowRequest;
-
-/**
- * @brief For given dataset and query in cartographic coordinates returns parameters for ReadRaster()
-        in raster coordinates and x/y shifts (for border tiles). If the querysize is not given, the
-        extent is returned in the native resolution of dataset ds.
- *
- * @param req
- * @param ulx
- * @param uly
- * @param lrx
- * @param lry
- * @param querysize
- * @return RWWindowMapping
- */
-// RWWindowMapping geo_query(RWWindowRequest req, double ulx, double uly, double lrx, double lry, int querysize = 256)
-// {
-//   int rx = static_cast<int>((ulx - req.geoTransform[0]) / req.geoTransform[1] + 0.001);
-//   int ry = static_cast<int>((uly - req.geoTransform[3]) / req.geoTransform[5] + 0.001);
-//   int rxsize = std::max(1, static_cast<int>((lrx - ulx) / req.geoTransform[1] + 0.5));
-//   int rysize = std::max(1, static_cast<int>((lry - uly) / req.geoTransform[5] + 0.5));
-
-//   int wxsize, wysize;
-//   if (querysize == 0)
-//   {
-//     wxsize = rxsize;
-//     wysize = rysize;
-//   }
-//   else
-//   {
-//     wxsize = querysize;
-//     wysize = querysize;
-//   }
-
-//   int wx = 0;
-//   if (rx < 0)
-//   {
-//     int rxshift = abs(rx);
-//     wx = static_cast<int>(wxsize * (static_cast<float>(rxshift) / rxsize));
-//     wxsize -= wx;
-//     rxsize -= static_cast<int>(rxsize * (static_cast<float>(rxshift) / rxsize));
-//     rx = 0;
-//   }
-//   if (rx + rxsize > req.SizeX)
-//   {
-//     wxsize = static_cast<int>(wxsize * (static_cast<float>(req.SizeX - rx) / rxsize));
-//     rxsize = req.SizeX - rx;
-//   }
-
-//   int wy = 0;
-//   if (ry < 0)
-//   {
-//     int ryshift = abs(ry);
-//     wy = static_cast<int>(wysize * (static_cast<float>(ryshift) / rysize));
-//     wysize -= wy;
-//     rysize -= static_cast<int>(rysize * (static_cast<float>(ryshift) / rysize));
-//     ry = 0;
-//   }
-//   if (ry + rysize > req.SizeY)
-//   {
-//     wysize = static_cast<int>(wysize * (static_cast<float>(req.SizeY - ry) / rysize));
-//     rysize = req.SizeY - ry;
-//   }
-
-//   RWWindowMapping mapping;
-//   mapping.readx = rx;
-//   mapping.ready = ry;
-//   mapping.readxsize = rxsize;
-//   mapping.readysize = rysize;
-//   mapping.writex = wx;
-//   mapping.writey = wy;
-//   mapping.writexsize = wxsize;
-//   mapping.writeysize = wysize;
-
-//   return mapping;
-// }
+// TODO: Implement the above functions to use transformations and manifest for wmts server
 
 int main(int argc, char *argv[])
 {
@@ -142,6 +57,7 @@ int main(int argc, char *argv[])
   GDALDataType eType = poSrcDataset->GetRasterBand(1)->GetRasterDataType();
   std::cout << "Size is " << nXSize << " x " << nYSize << " x " << nBands << " datatype " << GDALGetDataTypeName(eType) << std::endl;
 
+  // TODO: Intiger handling
   if (nBands != 1 || eType != GDT_Float32)
   {
     std::cerr << "[Error]: unsupported format, convert to float32 with one band" << std::endl;
@@ -187,10 +103,8 @@ int main(int argc, char *argv[])
     max_tile_y = tmp;
   }
 
-  // INFO: XYZ filenames, not tms
+  //?: XYZ filenames, not tms
 
-  // int tile_count = (max_tile_x - min_tile_x + 1) * (max_tile_y - min_tile_y + 1);
-  // std::cout << "Tile count: " << tile_count << std::endl;
   GDALDriver *poDriverMEM = GetGDALDriverManager()->GetDriverByName("MEM");
   GDALDriver *poDriverHF = GetGDALDriverManager()->GetDriverByName("HF2");
   if (poDriverMEM == NULL || poDriverHF == NULL)
