@@ -17,7 +17,10 @@ find_package(absl REQUIRED)
 
 # Add the executable
 add_executable(tif2tile src/tif2tile.cpp)
+
+add_executable(hfzwmtstiler src/hfzwmtstiler.cpp src/tile2lnglat.h)
 # Link GDAL library
 target_link_libraries(tif2tile ${GDAL_LIBRARIES})
+target_link_libraries(hfzwmtstiler ${GDAL_LIBRARIES})
 
 
