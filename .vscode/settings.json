@@ -1,5 +1,6 @@
 {
   "files.associations": {
+    "*.h": "cpp",
     "ostream": "cpp",
     "__bit_reference": "cpp",
     "__hash_table": "cpp",
@@ -69,6 +70,16 @@
     "memory_resource": "cpp",
     "type_traits": "cpp",
     "utility": "cpp",
-    "cinttypes": "cpp"
+    "cinttypes": "cpp",
+    "system_error": "cpp",
+    "format": "cpp",
+    "codecvt": "cpp",
+    "condition_variable": "cpp",
+    "forward_list": "cpp",
+    "list": "cpp",
+    "numbers": "cpp",
+    "semaphore": "cpp",
+    "shared_mutex": "cpp",
+    "unordered_set": "cpp"
   }
 }

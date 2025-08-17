@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "clear-tiles",
+      "type": "shell",
+      "command": "rm -rf ${workspaceFolder}/tiles/*"
+    }
+  ]
+}
