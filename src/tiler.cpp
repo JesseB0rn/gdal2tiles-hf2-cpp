@@ -1,9 +1,7 @@
 #include <gdal.h>
 #include <gdal_priv.h>
 #include <iostream>
-
-#define TILE_SIZE 256
-#define TILE_PIXEL_SIZE_M 10
+#include "tiler_primitives.cpp"
 
 using namespace std;
 
@@ -16,6 +14,7 @@ typedef struct
   GDALDataType dataType;
   void *buffer;
   double *geoTransform;
+  Extent extent;
 } ReadDataset;
 
 void *allocateGridBuffer(GDALDataType eType, int nXSize, int nYSize)
@@ -76,6 +75,7 @@ void *allocateGridBuffer(GDALDataType eType, int nXSize, int nYSize)
 double *getGeoTransform(GDALDataset *poDataset)
 {
   double *adfGeoTransform = (double *)malloc(sizeof(double) * 6);
+
   if (poDataset->GetGeoTransform(adfGeoTransform) != CE_None)
   {
     std::cerr << "Error: cannot get GeoTransform" << std::endl;
@@ -88,6 +88,19 @@ double *getGeoTransform(GDALDataset *poDataset)
     exit(1);
   }
   return adfGeoTransform;
+}
+
+void calculateDatasetExtent(ReadDataset &dataset)
+{
+  double x_a = dataset.geoTransform[0];
+  double x_b = dataset.geoTransform[0] + dataset.geoTransform[1] * dataset.xSize;
+  double y_a = dataset.geoTransform[3] + dataset.geoTransform[5] * dataset.ySize;
+  double y_b = dataset.geoTransform[3];
+
+  dataset.extent.minX = std::min(x_a, x_b);
+  dataset.extent.minY = std::min(y_a, y_b);
+  dataset.extent.maxX = std::max(x_a, x_b);
+  dataset.extent.maxY = std::max(y_a, y_b);
 }
 
 ReadDataset readDataset(const char *filename)
@@ -115,6 +128,7 @@ ReadDataset readDataset(const char *filename)
   }
 
   result.geoTransform = getGeoTransform(result.dataset);
+  calculateDatasetExtent(result);
 
   return result;
 }
