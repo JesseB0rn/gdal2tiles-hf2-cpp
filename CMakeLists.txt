@@ -45,15 +45,14 @@ target_link_libraries(tiler25 ${GDAL_LIBRARIES})
 
 # Add test executable (example, will add test file next)
 add_executable(
-	example_test
+	primitives_test
 	tests/tiler_tests.cpp
   src/tiler_primitives.cpp
-  # src/tiler.cpp
 )
 target_link_libraries(
-	example_test
+	primitives_test
 	gtest_main
 )
-gtest_discover_tests(example_test)
+gtest_discover_tests(primitives_test)
 
 

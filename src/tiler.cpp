@@ -133,35 +133,6 @@ ReadDataset readDataset(const char *filename)
   return result;
 }
 
-void getTileGeoTransform(double *tileGeoTransform, ReadDataset &dataset, double tileMinX, double tileMinY, double tileMaxX, double tileMaxY)
-{
-  double pixelWidth = TILE_PIXEL_SIZE_M;
-  double pixelHeight = TILE_PIXEL_SIZE_M;
-
-  // Calculate the top-left corner of the tile
-  double tileTopLeftX = tileMinX;
-  double tileTopLeftY = tileMaxY;
-
-  // Calculate the bottom-right corner of the tile
-  double tileBottomRightX = tileMaxX;
-  double tileBottomRightY = tileMinY;
-
-  // Create a new GeoTransform array for the tile
-  if (tileGeoTransform == nullptr)
-  {
-    std::cerr << "Error: geotransform allocation failed" << std::endl;
-    exit(1);
-  }
-
-  // Set the GeoTransform coefficients for the tile
-  tileGeoTransform[0] = tileTopLeftX;                                  // top-left x
-  tileGeoTransform[1] = (tileTopLeftX - tileBottomRightX) / TILE_SIZE; // pixel width
-  tileGeoTransform[2] = 0;                                             // rotation (0 for north-up)
-  tileGeoTransform[3] = tileTopLeftY;                                  // top-left y
-  tileGeoTransform[4] = 0;                                             // rotation (0 for north-up)
-  tileGeoTransform[5] = (tileTopLeftY - tileBottomRightY) / TILE_SIZE; // pixel height (negative value for north-up)
-}
-
 void writeTileToDisk(void *tileBuffer, const char *filename, GDALDataType dataType, double *geoTransform, const char *projectionRef)
 {
   GDALDriver *poDriverMEM = GetGDALDriverManager()->GetDriverByName("MEM");
@@ -194,89 +165,83 @@ void writeTileToDisk(void *tileBuffer, const char *filename, GDALDataType dataTy
   GDALClose(poDstDataset);
 }
 
-void *sampleTileFromGrid(ReadDataset &dataset, double tileMinX, double tileMinY, double tileMaxX, double tileMaxY)
+void *produceNODATAforType(GDALDataType type)
+{
+  switch (type)
+  {
+  case GDT_Byte:
+  {
+    uint8_t *nodata = static_cast<uint8_t *>(malloc(1));
+    memset(nodata, 255, 1);
+    return nodata;
+  }
+  case GDT_UInt16:
+  {
+    uint16_t *nodata = static_cast<uint16_t *>(malloc(2));
+    memset(nodata, 9999, 2);
+    return nodata;
+  }
+  case GDT_Int16:
+  {
+    int16_t *nodata = static_cast<int16_t *>(malloc(2));
+    memset(nodata, 9999, 2);
+    return nodata;
+  }
+  case GDT_UInt32:
+  {
+    uint32_t *nodata = static_cast<uint32_t *>(malloc(4));
+    memset(nodata, 9999, 4);
+    return nodata;
+  }
+  case GDT_Int32:
+  {
+    int32_t *nodata = static_cast<int32_t *>(malloc(4));
+    memset(nodata, 9999, 4);
+    return nodata;
+  }
+  case GDT_Float32:
+  {
+    float *nodata = static_cast<float *>(malloc(4));
+    memset(nodata, 9999.0f, 4);
+    return nodata;
+  }
+  case GDT_Float64:
+  {
+    double *nodata = static_cast<double *>(malloc(8));
+    memset(nodata, 9999.0, 8);
+    return nodata;
+  }
+  default:
+    return nullptr;
+  }
+}
+
+void *sampleTileFromGrid(ReadDataset &dataset, TileProductionReq &req)
 {
   void *tileBuffer = allocateGridBuffer(dataset.dataType, TILE_SIZE, TILE_SIZE);
-
-  double pixelWidth = dataset.geoTransform[1];
-  double pixelHeight = dataset.geoTransform[5];
-  float startGridIndexX = static_cast<int>((tileMinX - dataset.geoTransform[0]) / pixelWidth);
-  float startGridIndexY = static_cast<int>((tileMinY - dataset.geoTransform[3]) / pixelHeight);
-  float endGridIndexX = static_cast<int>((tileMaxX - dataset.geoTransform[0]) / pixelWidth);
-  float endGridIndexY = static_cast<int>((tileMaxY - dataset.geoTransform[3]) / pixelHeight);
+  void *NODATA = produceNODATAforType(dataset.dataType);
 
   for (int j = 0; j < TILE_SIZE; ++j)
   {
-    for (int i = 1; i <= TILE_SIZE; ++i)
+    for (int i = 0; i < TILE_SIZE; ++i)
     {
-      // Compute the grid indices for the current tile pixel
-      // In Future, adapt to nearest-neighbor-resampling
-      int gridIndexX = static_cast<int>(startGridIndexX + i * (endGridIndexX - startGridIndexX) / TILE_SIZE);
-      int gridIndexY = static_cast<int>(startGridIndexY + j * (endGridIndexY - startGridIndexY) / TILE_SIZE);
-
-      if (gridIndexX < 0 || gridIndexX >= dataset.xSize || gridIndexY < 0 || gridIndexY >= dataset.ySize)
+      double CRSpixelCoordX, CRSpixelCoordY;
+      int gridIndexX, gridIndexY;
+      // Calculate the CRS pixel coordinates for the current tile pixel
+      gridToCRSCoord(req.geoTransform, i, j, CRSpixelCoordX, CRSpixelCoordY);
+      crsCoordToGridIndex(dataset.geoTransform, CRSpixelCoordX, CRSpixelCoordY, gridIndexX, gridIndexY);
+      // check if the grid indices are within bounds
+      if (gridIndexX >= 0 && gridIndexX < dataset.xSize && gridIndexY >= 0 && gridIndexY < dataset.ySize)
       {
-        // Out of bounds, fill with default value
-        switch (dataset.dataType)
-        {
-        case GDT_Float32:
-          reinterpret_cast<float *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 9999.0f;
-          break;
-        case GDT_Float64:
-          reinterpret_cast<double *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 9999.0;
-          break;
-        case GDT_Byte:
-          reinterpret_cast<uint8_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 0;
-          break;
-        case GDT_UInt32:
-          reinterpret_cast<uint32_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 9999;
-          break;
-        case GDT_Int32:
-          reinterpret_cast<int32_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 9999;
-          break;
-        case GDT_Int16:
-          reinterpret_cast<int16_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 9999;
-          break;
-        case GDT_UInt16:
-          reinterpret_cast<uint16_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = 9999;
-          break;
-        default:
-          std::cerr << "[Error]: unsupported data type" << std::endl;
-          exit(1);
-        }
+        memcpy(static_cast<uint8_t *>(tileBuffer) + (j * TILE_SIZE + i) * GDALGetDataTypeSizeBytes(dataset.dataType),
+               static_cast<uint8_t *>(dataset.buffer) + (gridIndexY * dataset.xSize + gridIndexX) * GDALGetDataTypeSizeBytes(dataset.dataType),
+               GDALGetDataTypeSizeBytes(dataset.dataType));
       }
       else
       {
-        // Sample the value from the grid buffer
-        int gridIndex = gridIndexY * dataset.xSize + gridIndexX;
-
-        switch (dataset.dataType)
-        {
-        case GDT_Float32:
-          reinterpret_cast<float *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<float *>(dataset.buffer)[gridIndex];
-          break;
-        case GDT_Float64:
-          reinterpret_cast<double *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<double *>(dataset.buffer)[gridIndex];
-          break;
-        case GDT_Byte:
-          reinterpret_cast<uint8_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<uint8_t *>(dataset.buffer)[gridIndex];
-          break;
-        case GDT_UInt32:
-          reinterpret_cast<uint32_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<uint32_t *>(dataset.buffer)[gridIndex];
-          break;
-        case GDT_Int32:
-          reinterpret_cast<int32_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<int32_t *>(dataset.buffer)[gridIndex];
-          break;
-        case GDT_Int16:
-          reinterpret_cast<int16_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<int16_t *>(dataset.buffer)[gridIndex];
-          break;
-        case GDT_UInt16:
-          reinterpret_cast<uint16_t *>(tileBuffer)[(j + 1) * TILE_SIZE - i] = reinterpret_cast<uint16_t *>(dataset.buffer)[gridIndex];
-          break;
-        default:
-          std::cerr << "[Error]: unsupported data type" << std::endl;
-          exit(1);
-        }
+        memcpy(static_cast<uint8_t *>(tileBuffer) + (j * TILE_SIZE + i) * GDALGetDataTypeSizeBytes(dataset.dataType),
+               NODATA,
+               GDALGetDataTypeSizeBytes(dataset.dataType));
       }
     }
   }
@@ -298,7 +263,7 @@ void progressReporting(int current, int total)
     else
       std::cout << " ";
   }
-  std::cout << "] " << static_cast<int>(progress * 100) << "%\r";
+  std::cout << "] " << static_cast<int>(progress * 100) << "%" << std::endl;
   std::cout.flush();
 }
 
@@ -340,32 +305,19 @@ int main(int argc, char *argv[])
   {
     for (int i = 0; i < numTilesX; ++i)
     {
-      double tileMinX = pixelWidth > 0 ? upperLeftX + (i * tileSizeMetersX) : upperLeftX - (i * tileSizeMetersX);
-      double tileMinY = pixelHeight > 0 ? upperLeftY + (j * tileSizeMetersY) : upperLeftY - (j * tileSizeMetersY);
-      double tileMaxX = pixelWidth > 0 ? tileMinX + tileSizeMetersX : tileMinX - tileSizeMetersX;
-      double tileMaxY = pixelHeight > 0 ? tileMinY + tileSizeMetersY : tileMinY - tileSizeMetersY;
-
-      std::cout << "Tile " << i << ", " << j << ": "
-                << tileMinX << ", " << tileMinY << " - "
-                << tileMaxX << ", " << tileMaxY << std::endl;
-      void *tileData =
-          sampleTileFromGrid(dataset, tileMinX, tileMinY, tileMaxX, tileMaxY);
       char filename[256];
       snprintf(filename, sizeof(filename), "tiles/tile_%d_%d.hf2", i, j);
-      double *geoTransform = (double *)malloc(sizeof(double) * 6);
-      if (geoTransform == nullptr)
-      {
-        std::cerr << "Error: cannot allocate memory for GeoTransform" << std::endl;
-        exit(1);
-      }
-      getTileGeoTransform(geoTransform, dataset, tileMinX, tileMinY, tileMaxX, tileMaxY);
-      writeTileToDisk(tileData, filename, dataset.dataType, geoTransform, projection);
+
+      TileProductionReq req = prepareTile(dataset.extent, i, j);
+
+      void *tileData = sampleTileFromGrid(dataset, req);
+
+      writeTileToDisk(tileData, filename, dataset.dataType, req.geoTransform, projection);
 
       free(tileData);
-      free(geoTransform);
-
-      progressReporting(j * numTilesX + i + 1, numTilesX * numTilesY);
+      free(req.geoTransform);
     }
+    progressReporting(j * numTilesX + 1, numTilesX * numTilesY);
   }
 
   // cleanup
