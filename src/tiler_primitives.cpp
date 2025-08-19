@@ -58,3 +58,15 @@ static TileProductionReq prepareTile(Extent parentDatasetExtent, int tileX, int 
 
   return req;
 }
+
+static void crsCoordToGridIndex(double *geoTransform, double pixelX, double pixelY, int &sourceX, int &sourceY)
+{
+  sourceX = static_cast<int>((pixelX - geoTransform[0]) / geoTransform[1]);
+  sourceY = static_cast<int>((pixelY - geoTransform[3]) / geoTransform[5]);
+}
+
+static void gridToCRSCoord(double *geoTransform, int gridX, int gridY, double &pixelX, double &pixelY)
+{
+  pixelX = geoTransform[0] + gridX * geoTransform[1];
+  pixelY = geoTransform[3] + gridY * geoTransform[5];
+}
