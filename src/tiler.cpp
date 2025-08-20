@@ -19,35 +19,7 @@ typedef struct
 
 void *allocateGridBuffer(GDALDataType eType, int nXSize, int nYSize)
 {
-  void *gridBuffer = nullptr;
-
-  switch (eType)
-  {
-  case GDT_UInt16:
-    gridBuffer = new uint16_t[nXSize * nYSize];
-    break;
-  case GDT_Int16:
-    gridBuffer = new int16_t[nXSize * nYSize];
-    break;
-  case GDT_Float32:
-    gridBuffer = new float[nXSize * nYSize];
-    break;
-  case GDT_Float64:
-    gridBuffer = new double[nXSize * nYSize];
-    break;
-  case GDT_Byte:
-    gridBuffer = new uint8_t[nXSize * nYSize];
-    break;
-  case GDT_UInt32:
-    gridBuffer = new uint32_t[nXSize * nYSize];
-    break;
-  case GDT_Int32:
-    gridBuffer = new int32_t[nXSize * nYSize];
-    break;
-  default:
-    std::cerr << "[Error]: unsupported data type" << std::endl;
-    exit(1);
-  }
+  void *gridBuffer = malloc(nXSize * nYSize * GDALGetDataTypeSizeBytes(eType));
 
   if (gridBuffer == NULL)
   {
