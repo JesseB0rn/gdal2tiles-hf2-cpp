@@ -12,9 +12,3 @@ cd build
 cmake ..
 make -j4
 ```
-
-## creating riskmaps:
-
-1. create riskmap: riskprocessor from MA
-2. warp to pesg:4325 (WGS84):: `gdalwarp -t_srs EPSG:4326 riskmap.tif riskmap_4326.tif -overwrite`
-3. ./tif2tile /Users/jesseb0rn/Documents/repos/Maturaarbeit-AlgoSkitour/source/riskprocessor/riskmap_4326.tif
