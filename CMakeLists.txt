@@ -16,7 +16,7 @@ find_package(GDAL REQUIRED)
 include_directories(${GDAL_INCLUDE_DIRS})
 
 find_package(Threads REQUIRED)
-find_package(absl REQUIRED)
+# find_package(absl REQUIRED)
 
 # Add GoogleTest
 include(FetchContent)
